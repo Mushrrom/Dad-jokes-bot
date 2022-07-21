@@ -1,14 +1,13 @@
 from functools import total_ordering
-import discord
-import guilded
-import os
-import pickle
+import discord, guilded, os, pickle, requests
+import requests
 from dotenv import load_dotenv
 import multiprocessing
 
 load_dotenv()
 DISCORD_TOKEN = os.environ['DISCORD']
 GUILDED_TOKEN = os.environ['GUILDED']
+WEBHOOK_URL = os.environ['WEBHOOK_URL']
 
 #DATA.PICKLE FORMATTING: [total, discord total, guilded total]
 def totals(option):
@@ -44,12 +43,14 @@ def DiscordBot():
     @dbot.event
     async def on_message(message):
         if message.author == dbot.user:
+            await dbot.change_presence(activity=discord. Activity(type=discord.ActivityType.watching, name='Your complaints (dad complaint)'))
             return
 
         msg = message.content
         msg = msg.lower()
-        print(msg)
-        if (msg[0] == 'i') and (((msg[1]=="'" or msg[1] =="’") and msg[2] == "m") or msg[1]== 'm'):
+        if len(msg) < 2:
+            return
+        elif (msg[0] == 'i') and (((msg[1]=="'" or msg[1] =="’") and msg[2] == "m") or msg[1]== 'm'):
             msg = message.content
 
             cntnt = msg[3:]
@@ -59,10 +60,26 @@ def DiscordBot():
 
             await message.channel.send("Hi %s, I'm Dad" %cntnt)
         
-        if message.content == "dad stats" or message.content == "Dad stats":
+        elif msg == "dad stats":
             thetotals = totals(3)
             embedvar = discord.Embed(title="Dad bot stats", description="Total messages sent: `%s`\nFrom discord: `%s`\nFrom Guilded: `%s`"%(thetotals[0], thetotals[1], thetotals[2]))
+            embedvar.set_footer
             await message.channel.send(embed=embedvar)
+        
+        elif msg.startswith('dad complaint'):
+            ctnt = message.content[13:]
+            data = {"content" : "-------------------------------\n" + ctnt + "\n\nFrom: "+ str(message.author) + "  (from discord)\n-------------------------------","username" : "dad bot complaint"}
+            await message.channel.send('Your complaint has been noted')
+            requests.post(WEBHOOK_URL, json=data)
+        elif msg == 'dad help':
+            embedvar = discord.Embed(title="Dad bot help",)
+            embedvar.add_field(name="About", value="Just a simple bot that tells the age old hi x I'm dad joke \nIf this is not to your liking, use 'dad complaint' to send a complaint to me\nThe source code is available at https://github.com/Mushrrom/Dad-jokes-bot", inline=False)
+            embedvar.add_field(name="Commands", value= "**dad stats**: Shows stats about the bot\n**dad complaint**: Sends me a complaint")
+            await message.channel.send(embed=embedvar)
+        elif msg == 'dad ping':
+            embedVar = discord.Embed(title="Pong", description="Pong", color=0x00ff00)
+            embedVar.add_field(name="Latency", value=str(round(dbot.latency * 1000)), inline=False)
+            await message.channel.send(embed=embedVar)
     dbot.run(DISCORD_TOKEN)
 
     
@@ -78,7 +95,6 @@ def guildedbot():
             return
         msg = ctx.content
         msg = msg.lower()
-        print(msg)
         if (msg[0] == 'i') and (((msg[1]=="'" or msg[1] =="’") and msg[2] == "m") or msg[1]== 'm'):
             msg = ctx.content
             cntnt = msg[3:]
@@ -87,11 +103,21 @@ def guildedbot():
             totals(2)
             await ctx.channel.send("Hi %s, I'm Dad" %cntnt)
         
-        if ctx.content == "dad stats" or ctx.content == "Dad stats":
+        if msg == "dad stats":
             thetotals = totals(3)
             embedvar = guilded.Embed(title="Dad bot stats", description="Total messages sent: `%s`\nFrom discord: `%s`\nFrom Guilded: `%s`"%(thetotals[0], thetotals[1], thetotals[2]))
             await ctx.channel.send(embed=embedvar)
-
+        if msg.startswith('dad complaint'):
+            ctnt = ctx.content
+            ctnt = ctnt[13:]
+            data = {"content" : "-------------------------------\n" + ctnt + "\n\nFrom: "+ str(ctx.author) + "  (from guilded)\n-------------------------------","username" : "dad bot complaint"}
+            await ctx.channel.send('Your complaint has been noted')
+            requests.post(WEBHOOK_URL, json=data)
+        if msg == 'dad help':
+            embedvar = guilded.Embed(title="Dad bot help",)
+            embedvar.add_field(name="About", value="Just a simple bot that tells the age old hi x I'm dad joke \nIf this is not to your liking, use 'dad complaint' to send a complaint to me\nThe source code is available at https://github.com/Mushrrom/Dad-jokes-bot", inline=False)
+            embedvar.add_field(name="Commands", value= "Dad stats: Shows stats about the bot\ndad complaint: Sends me a complaint")
+            await ctx.channel.send(embed=embedvar)
     gbot.run(GUILDED_TOKEN)
 
 if __name__ == '__main__':
